@@ -1,0 +1,6 @@
+{
+  "appId": "com.svpay.app",
+  "appName": "svpay",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
