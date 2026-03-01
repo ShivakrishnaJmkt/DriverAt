@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">svpay</string>
+    <string name="title_activity_main">svpay</string>
+    <string name="package_name">com.svpay.app</string>
+    <string name="custom_url_scheme">com.svpay.app</string>
+</resources>
