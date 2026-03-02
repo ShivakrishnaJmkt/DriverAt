@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
-    <cache-path name="my_cache_images" path="." />
+
+    <!-- Allow sharing files from internal app storage -->
+    <files-path
+        name="internal_files"
+        path="." />
+
+    <!-- Optional: allow cache files -->
+    <cache-path
+        name="cache"
+        path="." />
+
 </paths>

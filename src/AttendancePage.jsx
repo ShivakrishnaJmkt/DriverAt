@@ -1,4 +1,6 @@
-
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -145,58 +147,94 @@ export default function AttendancePage({ user, onLogout }) {
     };
   }, [attendance, dailyRate]);
 
-  const handleDownloadPayslip = () => {
-    const doc = new jsPDF();
+ const handleDownloadPayslip = async () => {
+  const doc = new jsPDF();
 
-    const logoUrl = "/logo.png";
-    try {
-      doc.addImage(logoUrl, "PNG", 15, 10, 30, 30);
-    } catch (e) {
-      console.warn("Logo load failed, PDF without logo", e);
-    }
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("SVPAY - Monthly Payslip", 105, 20, { align: "center" });
+  const logoUrl = "/logo.png";
+  try {
+    doc.addImage(logoUrl, "PNG", 15, 10, 30, 30);
+  } catch (e) {
+    console.warn("Logo load failed, PDF without logo", e);
+  }
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("SVPAY - Monthly Payslip", 105, 20, { align: "center" });
 
-    doc.setFontSize(11);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Employee Name: ${empName}`, 15, 40);
+  doc.text(`Employee ID: ${empId}`, 15, 48);
+  doc.text(`Month: ${month}`, 15, 56);
+  doc.text(`Daily Rate: ₹${dailyRate}`, 15, 64);
+
+  let y = 80;
+  doc.setFont("helvetica", "bold");
+  doc.text("Earnings Breakdown", 15, y);
+  y += 10;
+
+  const addRow = (label, units, rate, amount) => {
     doc.setFont("helvetica", "normal");
-    doc.text(`Employee Name: ${empName}`, 15, 40);
-    doc.text(`Employee ID: ${empId}`, 15, 48);
-    doc.text(`Month: ${month}`, 15, 56);
-    doc.text(`Daily Rate: ₹${dailyRate}`, 15, 64);
-
-    let y = 80;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Earnings Breakdown", 15, y);
-    y += 10;
-
-    const addRow = (label, units, rate, amount) => {
-      doc.setFont("helvetica", "normal");
-      doc.text(label, 15, y);
-      doc.text(String(units), 80, y);
-      doc.text(rate, 120, y);
-      doc.text(`₹${amount.toFixed(2)}`, 160, y);
-      y += 8;
-    };
-
-    addRow("Regular", stats.present, `₹${dailyRate}`, stats.present * dailyRate);
-    addRow("12hrs", stats.twelveHrs, "1.5x", stats.twelveHrs * RATE_MULTIPLIER["12hrs"] * dailyRate);
-    addRow("Overtime", stats.ot, "2.5x", stats.ot * RATE_MULTIPLIER.OT * dailyRate);
-    addRow("Double Duty", stats.dd, "2x", stats.dd * RATE_MULTIPLIER.DD * dailyRate);
-    addRow("3 Duty", stats.threeD, "3x", stats.threeD * RATE_MULTIPLIER["3D"] * dailyRate);
-    addRow("4 Duty", stats.fourD, "4x", stats.fourD * RATE_MULTIPLIER["4D"] * dailyRate);
-    addRow("Week Off Earned", stats.weekOff, `₹${dailyRate}`, stats.weekOff * dailyRate);
-    addRow("Casual Leave", stats.casualLeave, `₹${dailyRate}`, stats.casualLeave * dailyRate);
-
-    y += 5;
-    doc.setFont("helvetica", "bold");
-    doc.text(`Net Payable: ₹${stats.totalPayable.toFixed(2)}`, 15, y);
-
-    doc.save(`Payslip-${month}-${empId}.pdf`);
+    doc.text(label, 15, y);
+    doc.text(String(units), 80, y);
+    doc.text(rate, 120, y);
+    doc.text(`₹${amount.toFixed(2)}`, 160, y);
+    y += 8;
   };
 
-    
+  addRow("Regular", stats.present, `₹${dailyRate}`, stats.present * dailyRate);
+  addRow("12hrs", stats.twelveHrs, "1.5x", stats.twelveHrs * RATE_MULTIPLIER["12hrs"] * dailyRate);
+  addRow("Overtime", stats.ot, "2.5x", stats.ot * RATE_MULTIPLIER.OT * dailyRate);
+  addRow("Double Duty", stats.dd, "2x", stats.dd * RATE_MULTIPLIER.DD * dailyRate);
+  addRow("3 Duty", stats.threeD, "3x", stats.threeD * RATE_MULTIPLIER["3D"] * dailyRate);
+  addRow("4 Duty", stats.fourD, "4x", stats.fourD * RATE_MULTIPLIER["4D"] * dailyRate);
+  addRow("Week Off Earned", stats.weekOff, `₹${dailyRate}`, stats.weekOff * dailyRate);
+  addRow("Casual Leave", stats.casualLeave, `₹${dailyRate}`, stats.casualLeave * dailyRate);
+
+  y += 5;
+  doc.setFont("helvetica", "bold");
+  doc.text(`Net Payable: ₹${stats.totalPayable.toFixed(2)}`, 15, y);
+
+  // ✅ Mobile-friendly PDF save
+  const fileName = `Payslip-${month}-${empId}.pdf`;
+ if (Capacitor.isNativePlatform()) {
+  try {
+    const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+    const result = await Filesystem.writeFile({
+      path: fileName,
+      data: pdfBase64,
+      directory: Directory.Data,   // ✅ changed here
+    });
+
+    console.log("PDF saved at:", result.uri);
+
+    await Share.share({
+      title: "Payslip",
+      text: `${empName} - ${month} Payslip`,
+      url: result.uri,
+      dialogTitle: "Share Payslip",
+    });
+
+    alert("Payslip generated successfully!");
+  } catch (error) {
+    console.error("Error saving PDF:", error);
+    alert("Failed to save PDF: " + error.message);
+  }
+} else {
+    // Web browser (fallback for browser testing)
+
+  // Generate blob URL and open (mobile WebView friendly)
+  const pdfBlob = doc.output('blob');
+  const url = URL.createObjectURL(pdfBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  }
+}; 
   return (
     <div className="app-shell">
       {!user ? (

@@ -165,14 +165,6 @@ const AuthPage = ({ onLoginSuccess }) => {
                 {isSignup ? "Log in" : "Create account"}
               </button>
             </div>
-
-            <div className="auth-demo-box">
-              <div className="auth-demo-title">Demo drivers</div>
-              <div className="auth-demo-items">
-                <span>driver1 / 123</span>
-                <span>ravi / 1234</span>
-              </div>
-            </div>
           </form>
         </div>
       </div>
