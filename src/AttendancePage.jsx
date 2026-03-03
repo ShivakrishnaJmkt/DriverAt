@@ -235,6 +235,89 @@ export default function AttendancePage({ user, onLogout }) {
   URL.revokeObjectURL(url);
   }
 }; 
+const handleExportBackup = async () => {
+  try {
+    const backupData = {
+      empId,
+      backupDate: new Date().toISOString(),
+      data: {},
+    };
+
+    // Collect only SVPAY attendance keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(`svpayAttendance_${empId}_`)) {
+        backupData.data[key] = JSON.parse(localStorage.getItem(key));
+      }
+    }
+
+    const fileName = `SVPAY_Backup_${empId}.json`;
+
+    if (Capacitor.isNativePlatform()) {
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: JSON.stringify(backupData),
+        directory: Directory.Data,
+      });
+
+      const filePath = result.uri.startsWith("file://")
+        ? result.uri
+        : "file://" + result.uri;
+
+      await Share.share({
+        title: "SVPAY Backup",
+        text: "Attendance Backup File",
+        url: filePath,
+      });
+
+      alert("Backup exported successfully!");
+    } else {
+      // Browser fallback
+      const blob = new Blob([JSON.stringify(backupData)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    alert("Backup failed: " + error.message);
+  }
+};
+const handleImportBackup = async (event) => {
+  try {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    if (!backup.data) {
+      alert("Invalid backup file!");
+      return;
+    }
+
+    // Restore data
+    Object.keys(backup.data).forEach((key) => {
+      localStorage.setItem(key, JSON.stringify(backup.data[key]));
+    });
+
+    alert("Backup restored successfully!");
+    window.location.reload();
+  } catch (error) {
+    alert("Restore failed: " + error.message);
+  }
+};
+
+
+
+
+
+
+
   return (
     <div className="app-shell">
       {!user ? (
@@ -557,6 +640,22 @@ export default function AttendancePage({ user, onLogout }) {
                 </span>
               </div>
             </div>
+            <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
+  <button className="btn-primary" onClick={handleExportBackup}>
+    📤 Export Backup
+  </button>
+
+  <label className="btn-primary" style={{ cursor: "pointer" }}>
+    📥 Import Backup
+    <input
+      type="file"
+      accept="application/json"
+      hidden
+      onChange={handleImportBackup}
+    />
+  </label>
+</div>
+
           </div>
         </div>
       )}
